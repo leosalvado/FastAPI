@@ -21,6 +21,10 @@
     #prix-temps-reel, #timer {
       font-size: 18px;
     }
+    #market-status {
+      font-size: 18px;
+      margin-top: 10px;
+    }
     canvas {
       margin-top: 40px;
     }
@@ -32,7 +36,7 @@
     <div id="prix-temps-reel">Chargement du prix…</div>
     <div id="timer">Prochaine mise à jour dans : 300s</div>
   </div>
-
+  <div id="market-status">Chargement du statut du marché…</div>
   <canvas id="etfChart" width="400" height="200"></canvas>
 
   <script>
@@ -72,15 +76,48 @@
       }
     });
 
-    // Fonction pour récupérer et afficher les données
+    function updateMarketStatus() {
+      const marketStatusEl = document.getElementById("market-status");
+      const now = new Date();
+      const nowParis = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+
+      const opening = new Date(nowParis);
+      opening.setHours(9, 0, 0, 0);
+      const closing = new Date(nowParis);
+      closing.setHours(17, 30, 0, 0);
+
+      let message = "";
+      let timeDiff = 0;
+
+      if (nowParis >= opening && nowParis < closing) {
+        // Marché ouvert
+        timeDiff = (closing - nowParis) / 1000;
+        message = "✅ Marché ouvert – Ferme dans : ";
+        marketStatusEl.style.color = "green";
+      } else {
+        // Marché fermé
+        if (nowParis < opening) {
+          timeDiff = (opening - nowParis) / 1000;
+        } else {
+          opening.setDate(opening.getDate() + 1);
+          timeDiff = (opening - nowParis) / 1000;
+        }
+        message = "❌ Marché fermé – Ouvre dans : ";
+        marketStatusEl.style.color = "darkred";
+      }
+
+      const h = Math.floor(timeDiff / 3600);
+      const m = Math.floor((timeDiff % 3600) / 60);
+      const s = Math.floor(timeDiff % 60);
+      marketStatusEl.innerText = message + `${h}h ${m}min ${s}s`;
+    }
+
     async function fetchDataAndUpdate() {
       try {
         const resPrice = await fetch("https://etf-backend.onrender.com/etf-price");
         if (!resPrice.ok) throw new Error("Erreur lors de la récupération du prix actuel");
         
         const dataPrice = await resPrice.json();
-        console.log("Données du prix actuel:", dataPrice);
-
         if (dataPrice.price) {
           prixEl.innerText = "Prix actuel : " + dataPrice.price + " €";
         } else {
@@ -91,7 +128,6 @@
         if (!resHistory.ok) throw new Error("Erreur lors de la récupération de l'historique");
 
         const dataHistory = await resHistory.json();
-        console.log("Données d'historique:", dataHistory);
 
         if (dataHistory.history && dataHistory.history.length > 0) {
           const labels = dataHistory.history
@@ -102,8 +138,6 @@
           chart.data.labels = labels;
           chart.data.datasets[0].data = values;
           chart.update();
-        } else {
-          console.warn("Aucune donnée d'historique disponible.");
         }
 
       } catch (error) {
@@ -112,7 +146,7 @@
       }
     }
 
-    // Timer pour la mise à jour du prix
+    // Timer pour mise à jour
     let secondsLeft = 300;
     function updateTimer() {
       timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
@@ -123,9 +157,11 @@
       }
     }
 
-    // Initialisation et mise à jour régulière
+    // Initialisation
     fetchDataAndUpdate();
-    setInterval(updateTimer, 1000); // Countdown chaque seconde
+    updateMarketStatus();
+    setInterval(updateTimer, 1000);
+    setInterval(updateMarketStatus, 1000);
   </script>
 </body>
 </html>
