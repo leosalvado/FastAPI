@@ -23,7 +23,8 @@
     }
     #market-status {
       font-size: 18px;
-      margin-top: 10px;
+      margin-top: 15px;
+      font-weight: bold;
     }
     canvas {
       margin-top: 40px;
@@ -42,6 +43,7 @@
   <script>
     const prixEl = document.getElementById("prix-temps-reel");
     const timerEl = document.getElementById("timer");
+    const marketStatusEl = document.getElementById("market-status");
 
     const ctx = document.getElementById("etfChart").getContext("2d");
     let chart = new Chart(ctx, {
@@ -77,7 +79,6 @@
     });
 
     function updateMarketStatus() {
-      const marketStatusEl = document.getElementById("market-status");
       const now = new Date();
       const nowParis = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
 
@@ -89,27 +90,34 @@
       let message = "";
       let timeDiff = 0;
 
-      if (nowParis >= opening && nowParis < closing) {
+      if (nowParis.getDay() === 0 || nowParis.getDay() === 6) {
+        message = "❌ Marché fermé (week-end)";
+        marketStatusEl.style.color = "gray";
+      } else if (nowParis >= opening && nowParis < closing) {
         // Marché ouvert
         timeDiff = (closing - nowParis) / 1000;
-        message = "✅ Marché ouvert – Ferme dans : ";
+        const h = Math.floor(timeDiff / 3600);
+        const m = Math.floor((timeDiff % 3600) / 60);
+        const s = Math.floor(timeDiff % 60);
+        message = `✅ Marché ouvert – Ferme dans : ${h}h ${m}min ${s}s`;
         marketStatusEl.style.color = "green";
       } else {
         // Marché fermé
-        if (nowParis < opening) {
-          timeDiff = (opening - nowParis) / 1000;
-        } else {
+        if (nowParis >= closing) {
           opening.setDate(opening.getDate() + 1);
-          timeDiff = (opening - nowParis) / 1000;
+          if (opening.getDay() === 6) opening.setDate(opening.getDate() + 2);
+          if (opening.getDay() === 0) opening.setDate(opening.getDate() + 1);
         }
-        message = "❌ Marché fermé – Ouvre dans : ";
+
+        timeDiff = (opening - nowParis) / 1000;
+        const h = Math.floor(timeDiff / 3600);
+        const m = Math.floor((timeDiff % 3600) / 60);
+        const s = Math.floor(timeDiff % 60);
+        message = `❌ Marché fermé – Ouvre dans : ${h}h ${m}min ${s}s`;
         marketStatusEl.style.color = "darkred";
       }
 
-      const h = Math.floor(timeDiff / 3600);
-      const m = Math.floor((timeDiff % 3600) / 60);
-      const s = Math.floor(timeDiff % 60);
-      marketStatusEl.innerText = message + `${h}h ${m}min ${s}s`;
+      marketStatusEl.innerText = message;
     }
 
     async function fetchDataAndUpdate() {
@@ -141,12 +149,11 @@
         }
 
       } catch (error) {
-        prixEl.innerText = "Erreur lors de la récupération des données : " + error.message;
+        prixEl.innerText = "Erreur : " + error.message;
         console.error("Erreur:", error);
       }
     }
 
-    // Timer pour mise à jour
     let secondsLeft = 300;
     function updateTimer() {
       timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
@@ -157,11 +164,11 @@
       }
     }
 
-    // Initialisation
+    // Lancement
     fetchDataAndUpdate();
     updateMarketStatus();
     setInterval(updateTimer, 1000);
-    setInterval(updateMarketStatus, 1000);
+    setInterval(updateMarketStatus, 1000); // actualise l'état du marché chaque seconde
   </script>
 </body>
 </html>
