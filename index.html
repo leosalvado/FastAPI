@@ -1,109 +1,114 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculateur ETF</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-        }
-        input, button {
-            padding: 10px;
-            margin: 10px;
-            font-size: 16px;
-        }
-        #historique {
-            margin-top: 20px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculateur ETF</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 50px auto;
+      max-width: 700px;
+    }
+    #header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+    }
+    #prix-temps-reel, #timer {
+      font-size: 18px;
+    }
+    canvas {
+      margin-top: 40px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Calculateur de Prix ETF</h1>
-    <p id="prix-temps-reel">Chargement du prix toutes les 5mins</p>
+  <h1>Suivi du Prix de l’ETF</h1>
+  <div id="header">
+    <div id="prix-temps-reel">Chargement du prix…</div>
+    <div id="timer">Prochaine mise à jour dans : 300s</div>
+  </div>
 
-    <p>Entrez un prix manuel si besoin :</p>
-    <input type="number" id="prix" placeholder="Ex : 23.01" step="0.01" />
-    <button onclick="calculerPrix()">Calculer</button>
+  <canvas id="etfChart" width="400" height="200"></canvas>
 
-    <h2 id="resultat"></h2>
+  <script>
+    const prixEl = document.getElementById("prix-temps-reel");
+    const timerEl = document.getElementById("timer");
 
-    <canvas id="prixChart" width="400" height="200"></canvas>
-
-    <h3>Historique des 30 derniers prix :</h3>
-    <div id="historique"></div>
-
-    <script>
-        // Appel du prix à ton backend FastAPI toutes les 5 minutes
-        async function fetchETFPrice() {
-            try {
-                const response = await fetch("https://etf-backend.onrender.com/etf-price");
-                const data = await response.json();
-                if (data.price) {
-                    document.getElementById("prix-temps-reel").innerText = "Prix en temps réel : " + data.price + " EUR";
-                    document.getElementById("prix").value = data.price;
-                    calculerPrix(); // Met automatiquement à jour le calcul
-                    updateChart();  // Met à jour le graphique
-                } else {
-                    document.getElementById("prix-temps-reel").innerText = "Erreur : données non disponibles.";
-                }
-            } catch (error) {
-                document.getElementById("prix-temps-reel").innerText = "Erreur lors de la récupération.";
+    const ctx = document.getElementById("etfChart").getContext("2d");
+    let chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Prix ETF',
+          data: [],
+          borderColor: 'blue',
+          backgroundColor: 'rgba(0, 0, 255, 0.1)',
+          tension: 0.2
+        }]
+      },
+      options: {
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Heure'
             }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Prix (€)'
+            },
+            beginAtZero: false
+          }
+        }
+      }
+    });
+
+    async function fetchDataAndUpdate() {
+      try {
+        const resPrice = await fetch("https://etf-backend.onrender.com/etf-price");
+        const dataPrice = await resPrice.json();
+        if (dataPrice.price) {
+          prixEl.innerText = "Prix actuel : " + dataPrice.price + " €";
         }
 
-        async function updateChart() {
-            try {
-                const response = await fetch("https://etf-backend.onrender.com/price-history");
-                const data = await response.json();
-                const prices = data.history.map(entry => entry.price);
-                const timestamps = data.history.map(entry => entry.timestamp);
+        const resHistory = await fetch("https://etf-backend.onrender.com/price-history");
+        const dataHistory = await resHistory.json();
 
-                // Créer ou mettre à jour le graphique
-                const ctx = document.getElementById('prixChart').getContext('2d');
-                if (window.myChart) {
-                    window.myChart.destroy(); // Détruire l'ancien graphique
-                }
-                window.myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: timestamps,
-                        datasets: [{
-                            label: 'Prix de l\'ETF',
-                            data: prices,
-                            fill: false,
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            x: { type: 'linear', position: 'bottom' }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Erreur lors de la récupération de l'historique des prix.", error);
-            }
-        }
+        const labels = dataHistory.history.map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})).reverse();
+        const values = dataHistory.history.map(h => h.price).reverse();
 
-        function calculerPrix() {
-            const prix = parseFloat(document.getElementById("prix").value);
-            const prixReference = 29.5465;
-            const resultat = (prixReference - prix) * 90;
-            
-            if (!isNaN(resultat)) {
-                document.getElementById("resultat").innerText = "Le résultat est : " + resultat.toFixed(2) + " EUR";
-            } else {
-                document.getElementById("resultat").innerText = "Veuillez entrer un prix valide.";
-            }
-        }
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.update();
 
-        fetchETFPrice(); // Appel initial
-        setInterval(fetchETFPrice, 5 * 60 * 1000); // Toutes les 5 minutes
-    </script>
+      } catch (error) {
+        prixEl.innerText = "Erreur lors de la récupération des données.";
+        console.error(error);
+      }
+    }
+
+    // Timer pour le prochain update
+    let secondsLeft = 300;
+    function updateTimer() {
+      timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
+      secondsLeft--;
+      if (secondsLeft < 0) {
+        secondsLeft = 300;
+        fetchDataAndUpdate();
+      }
+    }
+
+    // Initialisation
+    fetchDataAndUpdate();
+    setInterval(updateTimer, 1000); // Countdown chaque seconde
+  </script>
 </body>
 </html>
