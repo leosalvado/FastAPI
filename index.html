@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prix en temps réel - ETF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #resultat {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prix en temps réel de l’ETF ESE.PA</h1>
+    <div id="resultat">Chargement...</div>
+
+    <script>
+        const apiUrl = "https://TON-URL-RENDER/render-url"; // remplace par ton vrai lien Render
+
+        async function fetchData() {
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                const prixActuel = data.price;
+                const prixReference = 29.5465;
+                const calcul = (prixReference - prixActuel) * 90;
+
+                document.getElementById("resultat").innerText = 
+                    `Cours actuel : ${prixActuel.toFixed(2)} €\nRésultat : ${calcul.toFixed(2)} €`;
+            } catch (error) {
+                document.getElementById("resultat").innerText = 
+                    "Erreur de chargement des données.";
+                console.error("Erreur :", error);
+            }
+        }
+
+        fetchData();
+        setInterval(fetchData, 5 * 60 * 1000); // actualise toutes les 5 minutes
+    </script>
+</body>
+</html>
