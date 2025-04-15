@@ -22,10 +22,6 @@
           title: {
             display: true,
             text: 'Heure'
-          },
-          ticks: {
-            autoSkip: true,
-            maxTicksLimit: 6
           }
         },
         y: {
@@ -56,7 +52,6 @@
           .reverse();
         const values = dataHistory.history.map(h => h.price).reverse();
 
-        // Si les labels et les valeurs existent, on met à jour le graphique
         chart.data.labels = labels;
         chart.data.datasets[0].data = values;
         chart.update();
@@ -79,7 +74,7 @@
     }
   }
 
-  // Initialisation de la récupération des données
+  // Initialisation
   fetchDataAndUpdate();
   setInterval(updateTimer, 1000); // Countdown chaque seconde
 </script>
