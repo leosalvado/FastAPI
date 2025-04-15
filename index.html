@@ -1,114 +1,80 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Calculateur ETF</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin: 50px auto;
-      max-width: 700px;
-    }
-    #header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
-    }
-    #prix-temps-reel, #timer {
-      font-size: 18px;
-    }
-    canvas {
-      margin-top: 40px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Suivi du Prix de l’ETF</h1>
-  <div id="header">
-    <div id="prix-temps-reel">Chargement du prix…</div>
-    <div id="timer">Prochaine mise à jour dans : 300s</div>
-  </div>
+<script>
+  const prixEl = document.getElementById("prix-temps-reel");
+  const timerEl = document.getElementById("timer");
 
-  <canvas id="etfChart" width="400" height="200"></canvas>
-
-  <script>
-    const prixEl = document.getElementById("prix-temps-reel");
-    const timerEl = document.getElementById("timer");
-
-    const ctx = document.getElementById("etfChart").getContext("2d");
-    let chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Prix ETF',
-          data: [],
-          borderColor: 'blue',
-          backgroundColor: 'rgba(0, 0, 255, 0.1)',
-          tension: 0.2
-        }]
-      },
-      options: {
-        scales: {
-          x: {
-            title: {
-              display: true,
-              text: 'Heure'
-            }
-          },
-          y: {
-            title: {
-              display: true,
-              text: 'Prix (€)'
-            },
-            beginAtZero: false
+  const ctx = document.getElementById("etfChart").getContext("2d");
+  let chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Prix ETF',
+        data: [],
+        borderColor: 'blue',
+        backgroundColor: 'rgba(0, 0, 255, 0.1)',
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Heure'
           }
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Prix (€)'
+          },
+          beginAtZero: false
         }
       }
-    });
+    }
+  });
 
-    async function fetchDataAndUpdate() {
-      try {
-        const resPrice = await fetch("https://etf-backend.onrender.com/etf-price");
-        const dataPrice = await resPrice.json();
-        if (dataPrice.price) {
-          prixEl.innerText = "Prix actuel : " + dataPrice.price + " €";
-        }
+  async function fetchDataAndUpdate() {
+    try {
+      const resPrice = await fetch("https://etf-backend.onrender.com/etf-price");
+      const dataPrice = await resPrice.json();
+      if (dataPrice.price) {
+        prixEl.innerText = "Prix actuel : " + dataPrice.price + " €";
+      }
 
-        const resHistory = await fetch("https://etf-backend.onrender.com/price-history");
-        const dataHistory = await resHistory.json();
+      const resHistory = await fetch("https://etf-backend.onrender.com/price-history");
+      const dataHistory = await resHistory.json();
 
-        const labels = dataHistory.history.map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})).reverse();
+      if (dataHistory.history && dataHistory.history.length > 0) {
+        const labels = dataHistory.history
+          .map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}))
+          .reverse();
         const values = dataHistory.history.map(h => h.price).reverse();
 
         chart.data.labels = labels;
         chart.data.datasets[0].data = values;
         chart.update();
-
-      } catch (error) {
-        prixEl.innerText = "Erreur lors de la récupération des données.";
-        console.error(error);
       }
-    }
 
-    // Timer pour le prochain update
-    let secondsLeft = 300;
-    function updateTimer() {
-      timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
-      secondsLeft--;
-      if (secondsLeft < 0) {
-        secondsLeft = 300;
-        fetchDataAndUpdate();
-      }
+    } catch (error) {
+      prixEl.innerText = "Erreur lors de la récupération des données.";
+      console.error(error);
     }
+  }
 
-    // Initialisation
-    fetchDataAndUpdate();
-    setInterval(updateTimer, 1000); // Countdown chaque seconde
-  </script>
-</body>
-</html>
+  // Timer pour le prochain update
+  let secondsLeft = 300;
+  function updateTimer() {
+    timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
+    secondsLeft--;
+    if (secondsLeft < 0) {
+      secondsLeft = 300;
+      fetchDataAndUpdate();
+    }
+  }
+
+  // Initialisation
+  fetchDataAndUpdate();
+  setInterval(updateTimer, 1000); // Countdown chaque seconde
+</script>
