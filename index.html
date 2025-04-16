@@ -104,8 +104,6 @@
   <canvas id="etfChart" width="400" height="200"></canvas>
 
   <h2>Calculateur de Gains Potentiels</h2>
-  <p>Entrez le prix actuel de l'ETF :</p>
-  <input type="number" id="prix" placeholder="Ex : 23.01" step="0.01" />
 
   <p>Entrez votre montant d'investissement disponible (€) :</p>
   <input type="number" id="montant" placeholder="Ex : 500" step="0.01" />
@@ -122,6 +120,7 @@
     const prixEl = document.getElementById("prix-temps-reel");
     const timerEl = document.getElementById("timer");
     const marketStatusEl = document.getElementById("market-status");
+    let dernierPrix = null;
 
     const ctx = document.getElementById("etfChart").getContext("2d");
     let chart = new Chart(ctx, {
@@ -203,7 +202,8 @@
 
         const dataPrice = await resPrice.json();
         if (dataPrice.price) {
-          prixEl.innerText = "Prix actuel : " + dataPrice.price + " €";
+          dernierPrix = parseFloat(dataPrice.price);
+          prixEl.innerText = "Prix actuel : " + dernierPrix.toFixed(2) + " €";
         } else {
           prixEl.innerText = "Prix actuel indisponible";
         }
@@ -231,17 +231,16 @@
     }
 
     function calculerPrix() {
-      const prix = parseFloat(document.getElementById("prix").value);
       const montant = parseFloat(document.getElementById("montant").value);
       const prixReference = 29.54;
 
-      if (!isNaN(prix) && !isNaN(montant) && prix > 0) {
-        const nombreActions = montant / prix;
-        const resultat = (prixReference - prix) * nombreActions;
+      if (!isNaN(montant) && montant > 0 && dernierPrix !== null) {
+        const nombreActions = montant / dernierPrix;
+        const resultat = (prixReference - dernierPrix) * nombreActions;
         document.getElementById("resultat").innerText = 
           `Gain potentiel si le marché retourne à son plus haut (${prixReference} €) : ${resultat.toFixed(2)} EUR pour ${nombreActions.toFixed(2)} parts.`;
       } else {
-        document.getElementById("resultat").innerText = "Veuillez entrer des valeurs valides.";
+        document.getElementById("resultat").innerText = "Veuillez entrer un montant valide.";
       }
     }
 
