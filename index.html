@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Calculateur ETF</title>
+  <link rel="icon" type="image/png" href="favicone.png" />
+  <link rel="apple-touch-icon" href="favicone.png">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -77,40 +79,16 @@
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
-    footer {
-      margin-top: 40px;
-      font-size: 14px;
-      color: #7f8c8d;
-    }
-
-    #calculateur {
-      margin-top: 50px;
-      background-color: #ffffff;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
     input, button {
       padding: 10px;
       margin: 10px;
       font-size: 16px;
-      width: 80%;
-      max-width: 300px;
     }
 
-    button {
-      background-color: #2980b9;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-
-    #resultat {
-      font-size: 18px;
-      margin-top: 20px;
-      color: #2c3e50;
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #7f8c8d;
     }
   </style>
 </head>
@@ -125,23 +103,22 @@
 
   <canvas id="etfChart" width="400" height="200"></canvas>
 
-  <div id="calculateur">
-    <h2>Calculateur de Gain Potentiel</h2>
-    <p>Entrez votre montant d'investissement (€) :</p>
-    <input type="number" id="montant" placeholder="Ex : 500" step="0.01" />
-    <p>Le prix actuel est utilisé automatiquement pour le calcul.</p>
-    <button onclick="calculerGain()">Calculer</button>
-    <div id="resultat"></div>
-  </div>
+  <h2>Calculateur de Gains Potentiels</h2>
+  <p>Entrez le prix actuel de l'ETF :</p>
+  <input type="number" id="prix" placeholder="Ex : 23.01" step="0.01" />
+
+  <p>Entrez votre montant d'investissement disponible (€) :</p>
+  <input type="number" id="montant" placeholder="Ex : 500" step="0.01" />
+
+  <button onclick="calculerPrix()">Calculer</button>
+
+  <h3 id="resultat"></h3>
 
   <footer>
     <p>Powered by <a href="https://www.fastapi.tiangolo.com/" target="_blank" style="color: #2980b9;">FastAPI</a> and <a href="https://www.yfinance.info/" target="_blank" style="color: #2980b9;">Yahoo Finance</a></p>
   </footer>
 
   <script>
-    const prixReference = 29.54;
-    let currentPrix = null;
-
     const prixEl = document.getElementById("prix-temps-reel");
     const timerEl = document.getElementById("timer");
     const marketStatusEl = document.getElementById("market-status");
@@ -207,6 +184,7 @@
           if (opening.getDay() === 6) opening.setDate(opening.getDate() + 2);
           if (opening.getDay() === 0) opening.setDate(opening.getDate() + 1);
         }
+
         timeDiff = (opening - nowParis) / 1000;
         const h = Math.floor(timeDiff / 3600);
         const m = Math.floor((timeDiff % 3600) / 60);
@@ -225,8 +203,7 @@
 
         const dataPrice = await resPrice.json();
         if (dataPrice.price) {
-          currentPrix = parseFloat(dataPrice.price);
-          prixEl.innerText = "Prix actuel : " + currentPrix.toFixed(2) + " €";
+          prixEl.innerText = "Prix actuel : " + dataPrice.price + " €";
         } else {
           prixEl.innerText = "Prix actuel indisponible";
         }
@@ -235,6 +212,7 @@
         if (!resHistory.ok) throw new Error("Erreur lors de la récupération de l'historique");
 
         const dataHistory = await resHistory.json();
+
         if (dataHistory.history && dataHistory.history.length > 0) {
           const labels = dataHistory.history
             .map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}))
@@ -245,9 +223,25 @@
           chart.data.datasets[0].data = values;
           chart.update();
         }
+
       } catch (error) {
         prixEl.innerText = "Erreur : " + error.message;
         console.error("Erreur:", error);
+      }
+    }
+
+    function calculerPrix() {
+      const prix = parseFloat(document.getElementById("prix").value);
+      const montant = parseFloat(document.getElementById("montant").value);
+      const prixReference = 29.54;
+
+      if (!isNaN(prix) && !isNaN(montant) && prix > 0) {
+        const nombreActions = montant / prix;
+        const resultat = (prixReference - prix) * nombreActions;
+        document.getElementById("resultat").innerText = 
+          `Gain potentiel si le marché retourne à son plus haut (${prixReference} €) : ${resultat.toFixed(2)} EUR pour ${nombreActions.toFixed(2)} parts.`;
+      } else {
+        document.getElementById("resultat").innerText = "Veuillez entrer des valeurs valides.";
       }
     }
 
@@ -258,18 +252,6 @@
       if (secondsLeft < 0) {
         secondsLeft = 300;
         fetchDataAndUpdate();
-      }
-    }
-
-    function calculerGain() {
-      const montant = parseFloat(document.getElementById("montant").value);
-      if (!isNaN(currentPrix) && !isNaN(montant) && currentPrix > 0) {
-        const nombreActions = montant / currentPrix;
-        const gainPotentiel = (prixReference - currentPrix) * nombreActions;
-        document.getElementById("resultat").innerText = 
-          `Gain potentiel si le prix revient à son plus haut historique soit ${prixReference} € : ${gainPotentiel.toFixed(2)} € (${nombreActions.toFixed(2)} parts achetées à ${currentPrix.toFixed(2)} €).`;
-      } else {
-        document.getElementById("resultat").innerText = "Veuillez entrer un montant valide.";
       }
     }
 
