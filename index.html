@@ -267,7 +267,7 @@
         const nombreActions = montant / currentPrix;
         const gainPotentiel = (prixReference - currentPrix) * nombreActions;
         document.getElementById("resultat").innerText = 
-          `Gain potentiel si le prix revient à ${prixReference} € : ${gainPotentiel.toFixed(2)} € (${nombreActions.toFixed(2)} parts achetées à ${currentPrix.toFixed(2)} €).`;
+          `Gain potentiel si le prix revient à son plus haut historique soit ${prixReference} € : ${gainPotentiel.toFixed(2)} € (${nombreActions.toFixed(2)} parts achetées à ${currentPrix.toFixed(2)} €).`;
       } else {
         document.getElementById("resultat").innerText = "Veuillez entrer un montant valide.";
       }
