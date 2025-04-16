@@ -45,6 +45,14 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
+    #prix-temps-reel {
+      color: #2980b9;
+    }
+
+    #timer {
+      color: #8e44ad;
+    }
+
     #market-status.green {
       color: green;
       background-color: #eafaf1;
@@ -69,10 +77,16 @@
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+
     #calculateur {
       margin-top: 50px;
-      padding: 20px;
       background-color: #ffffff;
+      padding: 30px;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
@@ -81,19 +95,22 @@
       padding: 10px;
       margin: 10px;
       font-size: 16px;
+      width: 80%;
+      max-width: 300px;
+    }
+
+    button {
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
     }
 
     #resultat {
-      margin-top: 20px;
       font-size: 18px;
-      font-weight: bold;
+      margin-top: 20px;
       color: #2c3e50;
-    }
-
-    footer {
-      margin-top: 40px;
-      font-size: 14px;
-      color: #7f8c8d;
     }
   </style>
 </head>
@@ -112,9 +129,7 @@
     <h2>Calculateur de Gain Potentiel</h2>
     <p>Entrez votre montant d'investissement (€) :</p>
     <input type="number" id="montant" placeholder="Ex : 500" step="0.01" />
-    <p>Entrez le prix de référence (ex : 29.54) :</p>
-    <input type="number" id="prixReference" placeholder="Ex : 29.54" step="0.01" disabled />
-    <p>Le prix actuel sera utilisé automatiquement.</p>
+    <p>Le prix actuel est utilisé automatiquement pour le calcul.</p>
     <button onclick="calculerGain()">Calculer</button>
     <div id="resultat"></div>
   </div>
@@ -124,13 +139,12 @@
   </footer>
 
   <script>
+    const prixReference = 29.54;
+    let currentPrix = null;
+
     const prixEl = document.getElementById("prix-temps-reel");
     const timerEl = document.getElementById("timer");
     const marketStatusEl = document.getElementById("market-status");
-    const prixReference = 29.54;
-    document.getElementById("prixReference").value = prixReference;
-
-    let currentPrix = null;
 
     const ctx = document.getElementById("etfChart").getContext("2d");
     let chart = new Chart(ctx, {
@@ -149,10 +163,16 @@
         responsive: true,
         scales: {
           x: {
-            title: { display: true, text: 'Heure' }
+            title: {
+              display: true,
+              text: 'Heure'
+            }
           },
           y: {
-            title: { display: true, text: 'Prix (€)' },
+            title: {
+              display: true,
+              text: 'Prix (€)'
+            },
             beginAtZero: false
           }
         }
@@ -168,14 +188,17 @@
       const closing = new Date(nowParis);
       closing.setHours(17, 30, 0, 0);
 
-      let message = "", timeDiff = 0;
+      let message = "";
+      let timeDiff = 0;
 
       if (nowParis.getDay() === 0 || nowParis.getDay() === 6) {
         message = "❌ Marché fermé (week-end)";
         marketStatusEl.className = "gray";
       } else if (nowParis >= opening && nowParis < closing) {
         timeDiff = (closing - nowParis) / 1000;
-        const h = Math.floor(timeDiff / 3600), m = Math.floor((timeDiff % 3600) / 60), s = Math.floor(timeDiff % 60);
+        const h = Math.floor(timeDiff / 3600);
+        const m = Math.floor((timeDiff % 3600) / 60);
+        const s = Math.floor(timeDiff % 60);
         message = `✅ Marché ouvert – Ferme dans : ${h}h ${m}min ${s}s`;
         marketStatusEl.className = "green";
       } else {
@@ -185,7 +208,9 @@
           if (opening.getDay() === 0) opening.setDate(opening.getDate() + 1);
         }
         timeDiff = (opening - nowParis) / 1000;
-        const h = Math.floor(timeDiff / 3600), m = Math.floor((timeDiff % 3600) / 60), s = Math.floor(timeDiff % 60);
+        const h = Math.floor(timeDiff / 3600);
+        const m = Math.floor((timeDiff % 3600) / 60);
+        const s = Math.floor(timeDiff % 60);
         message = `❌ Marché fermé – Ouvre dans : ${h}h ${m}min ${s}s`;
         marketStatusEl.className = "red";
       }
@@ -196,6 +221,8 @@
     async function fetchDataAndUpdate() {
       try {
         const resPrice = await fetch("https://etf-backend.onrender.com/etf-price");
+        if (!resPrice.ok) throw new Error("Erreur lors de la récupération du prix actuel");
+
         const dataPrice = await resPrice.json();
         if (dataPrice.price) {
           currentPrix = parseFloat(dataPrice.price);
@@ -205,11 +232,15 @@
         }
 
         const resHistory = await fetch("https://etf-backend.onrender.com/price-history");
-        const dataHistory = await resHistory.json();
+        if (!resHistory.ok) throw new Error("Erreur lors de la récupération de l'historique");
 
+        const dataHistory = await resHistory.json();
         if (dataHistory.history && dataHistory.history.length > 0) {
-          const labels = dataHistory.history.map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})).reverse();
+          const labels = dataHistory.history
+            .map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}))
+            .reverse();
           const values = dataHistory.history.map(h => h.price).reverse();
+
           chart.data.labels = labels;
           chart.data.datasets[0].data = values;
           chart.update();
@@ -220,18 +251,6 @@
       }
     }
 
-    function calculerGain() {
-      const montant = parseFloat(document.getElementById("montant").value);
-      if (!isNaN(currentPrix) && !isNaN(montant) && currentPrix > 0) {
-        const nombreActions = montant / currentPrix;
-        const gainPotentiel = (prixReference - currentPrix) * nombreActions;
-        document.getElementById("resultat").innerText = 
-          "Gain potentiel : " + gainPotentiel.toFixed(2) + " € pour " + nombreActions.toFixed(2) + " parts.";
-      } else {
-        document.getElementById("resultat").innerText = "Veuillez entrer un montant valide.";
-      }
-    }
-
     let secondsLeft = 300;
     function updateTimer() {
       timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
@@ -239,6 +258,18 @@
       if (secondsLeft < 0) {
         secondsLeft = 300;
         fetchDataAndUpdate();
+      }
+    }
+
+    function calculerGain() {
+      const montant = parseFloat(document.getElementById("montant").value);
+      if (!isNaN(currentPrix) && !isNaN(montant) && currentPrix > 0) {
+        const nombreActions = montant / currentPrix;
+        const gainPotentiel = (prixReference - currentPrix) * nombreActions;
+        document.getElementById("resultat").innerText = 
+          `Gain potentiel si le prix revient à ${prixReference} € : ${gainPotentiel.toFixed(2)} € (${nombreActions.toFixed(2)} parts achetées à ${currentPrix.toFixed(2)} €).`;
+      } else {
+        document.getElementById("resultat").innerText = "Veuillez entrer un montant valide.";
       }
     }
 
