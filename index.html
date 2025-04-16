@@ -1,92 +1,251 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calculateur ETF BNP Paribas S&P 500</title>
-  <link rel="apple-touch-icon" href="favicon.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculateur ETF</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 50px auto;
+      max-width: 800px;
       background-color: #f4f7fc;
       color: #333;
-      text-align: center;
-      padding: 50px 20px;
     }
 
     h1 {
       color: #2c3e50;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
+      font-size: 2.5em;
+    }
+
+    #header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    #prix-temps-reel, #timer {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    #market-status {
+      font-size: 18px;
+      margin-top: 20px;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 5px;
+      display: inline-block;
+      background-color: #ffffff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #market-status.green {
+      color: green;
+      background-color: #eafaf1;
+      border: 1px solid #27ae60;
+    }
+
+    #market-status.red {
+      color: darkred;
+      background-color: #f8d7da;
+      border: 1px solid #e74c3c;
+    }
+
+    #market-status.gray {
+      color: gray;
+      background-color: #f2f2f2;
+      border: 1px solid #ccc;
+    }
+
+    canvas {
+      margin-top: 40px;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    #calculateur {
+      margin-top: 50px;
+      padding: 20px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
     input, button {
       padding: 10px;
       margin: 10px;
       font-size: 16px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      background-color: #2980b9;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #1c6391;
     }
 
     #resultat {
-      margin-top: 30px;
-      font-size: 20px;
+      margin-top: 20px;
+      font-size: 18px;
       font-weight: bold;
-      color: #27ae60;
+      color: #2c3e50;
     }
 
     footer {
-      margin-top: 50px;
+      margin-top: 40px;
       font-size: 14px;
       color: #7f8c8d;
     }
   </style>
 </head>
 <body>
+  <h1>Suivi du Prix de l’ETF</h1>
+  <div id="header">
+    <div id="prix-temps-reel">Chargement du prix…</div>
+    <div id="timer">Prochaine mise à jour dans : 300s</div>
+  </div>
 
-  <h1>Calculateur de Gain Potentiel - ETF BNP Paribas S&P 500</h1>
+  <div id="market-status">Chargement du statut du marché…</div>
 
-  <p>💹 Entrez le <strong>prix actuel</strong> de l'ETF :</p>
-  <input type="number" id="prix" placeholder="Ex : 23.01" step="0.01" />
+  <canvas id="etfChart" width="400" height="200"></canvas>
 
-  <p>💰 Entrez votre <strong>montant à investir</strong> (€) :</p>
-  <input type="number" id="montant" placeholder="Ex : 500" step="0.01" />
-
-  <br>
-  <button onclick="calculerPrix()">Calculer</button>
-
-  <div id="resultat"></div>
+  <div id="calculateur">
+    <h2>Calculateur de Gain Potentiel</h2>
+    <p>Entrez votre montant d'investissement (€) :</p>
+    <input type="number" id="montant" placeholder="Ex : 500" step="0.01" />
+    <p>Entrez le prix de référence (ex : 29.54) :</p>
+    <input type="number" id="prixReference" placeholder="Ex : 29.54" step="0.01" disabled />
+    <p>Le prix actuel sera utilisé automatiquement.</p>
+    <button onclick="calculerGain()">Calculer</button>
+    <div id="resultat"></div>
+  </div>
 
   <footer>
-    <p>Basé sur un prix cible de 29,54 €. Simulation indicative.</p>
+    <p>Powered by <a href="https://www.fastapi.tiangolo.com/" target="_blank" style="color: #2980b9;">FastAPI</a> and <a href="https://www.yfinance.info/" target="_blank" style="color: #2980b9;">Yahoo Finance</a></p>
   </footer>
 
   <script>
-    function calculerPrix() {
-      const prix = parseFloat(document.getElementById("prix").value);
-      const montant = parseFloat(document.getElementById("montant").value);
-      const prixReference = 29.54;
+    const prixEl = document.getElementById("prix-temps-reel");
+    const timerEl = document.getElementById("timer");
+    const marketStatusEl = document.getElementById("market-status");
+    const prixReference = 29.54;
+    document.getElementById("prixReference").value = prixReference;
 
-      if (!isNaN(prix) && !isNaN(montant) && prix > 0 && montant > 0) {
-        const nombreActions = montant / prix;
-        const gainPotentiel = (prixReference - prix) * nombreActions;
-        document.getElementById("resultat").innerText = 
-          `💸 Gain potentiel : ${gainPotentiel.toFixed(2)} € pour ${nombreActions.toFixed(2)} parts achetées.`;
+    let currentPrix = null;
+
+    const ctx = document.getElementById("etfChart").getContext("2d");
+    let chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Prix ETF',
+          data: [],
+          borderColor: 'blue',
+          backgroundColor: 'rgba(0, 0, 255, 0.1)',
+          tension: 0.2
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            title: { display: true, text: 'Heure' }
+          },
+          y: {
+            title: { display: true, text: 'Prix (€)' },
+            beginAtZero: false
+          }
+        }
+      }
+    });
+
+    function updateMarketStatus() {
+      const now = new Date();
+      const nowParis = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+
+      const opening = new Date(nowParis);
+      opening.setHours(9, 0, 0, 0);
+      const closing = new Date(nowParis);
+      closing.setHours(17, 30, 0, 0);
+
+      let message = "", timeDiff = 0;
+
+      if (nowParis.getDay() === 0 || nowParis.getDay() === 6) {
+        message = "❌ Marché fermé (week-end)";
+        marketStatusEl.className = "gray";
+      } else if (nowParis >= opening && nowParis < closing) {
+        timeDiff = (closing - nowParis) / 1000;
+        const h = Math.floor(timeDiff / 3600), m = Math.floor((timeDiff % 3600) / 60), s = Math.floor(timeDiff % 60);
+        message = `✅ Marché ouvert – Ferme dans : ${h}h ${m}min ${s}s`;
+        marketStatusEl.className = "green";
       } else {
-        document.getElementById("resultat").innerText = "❗ Veuillez entrer des valeurs valides.";
+        if (nowParis >= closing) {
+          opening.setDate(opening.getDate() + 1);
+          if (opening.getDay() === 6) opening.setDate(opening.getDate() + 2);
+          if (opening.getDay() === 0) opening.setDate(opening.getDate() + 1);
+        }
+        timeDiff = (opening - nowParis) / 1000;
+        const h = Math.floor(timeDiff / 3600), m = Math.floor((timeDiff % 3600) / 60), s = Math.floor(timeDiff % 60);
+        message = `❌ Marché fermé – Ouvre dans : ${h}h ${m}min ${s}s`;
+        marketStatusEl.className = "red";
+      }
+
+      marketStatusEl.innerText = message;
+    }
+
+    async function fetchDataAndUpdate() {
+      try {
+        const resPrice = await fetch("https://etf-backend.onrender.com/etf-price");
+        const dataPrice = await resPrice.json();
+        if (dataPrice.price) {
+          currentPrix = parseFloat(dataPrice.price);
+          prixEl.innerText = "Prix actuel : " + currentPrix.toFixed(2) + " €";
+        } else {
+          prixEl.innerText = "Prix actuel indisponible";
+        }
+
+        const resHistory = await fetch("https://etf-backend.onrender.com/price-history");
+        const dataHistory = await resHistory.json();
+
+        if (dataHistory.history && dataHistory.history.length > 0) {
+          const labels = dataHistory.history.map(h => new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})).reverse();
+          const values = dataHistory.history.map(h => h.price).reverse();
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = values;
+          chart.update();
+        }
+      } catch (error) {
+        prixEl.innerText = "Erreur : " + error.message;
+        console.error("Erreur:", error);
       }
     }
-  </script>
 
+    function calculerGain() {
+      const montant = parseFloat(document.getElementById("montant").value);
+      if (!isNaN(currentPrix) && !isNaN(montant) && currentPrix > 0) {
+        const nombreActions = montant / currentPrix;
+        const gainPotentiel = (prixReference - currentPrix) * nombreActions;
+        document.getElementById("resultat").innerText = 
+          "Gain potentiel : " + gainPotentiel.toFixed(2) + " € pour " + nombreActions.toFixed(2) + " parts.";
+      } else {
+        document.getElementById("resultat").innerText = "Veuillez entrer un montant valide.";
+      }
+    }
+
+    let secondsLeft = 300;
+    function updateTimer() {
+      timerEl.innerText = "Prochaine mise à jour dans : " + secondsLeft + "s";
+      secondsLeft--;
+      if (secondsLeft < 0) {
+        secondsLeft = 300;
+        fetchDataAndUpdate();
+      }
+    }
+
+    fetchDataAndUpdate();
+    updateMarketStatus();
+    setInterval(updateTimer, 1000);
+    setInterval(updateMarketStatus, 1000);
+  </script>
 </body>
 </html>
